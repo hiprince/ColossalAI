@@ -19,6 +19,14 @@ N_WARMUP_STEPS = 2
 
 CONFIG_MAP = {
     "toy": transformers.LlamaConfig(num_hidden_layers=4),
+    "tinyllama": transformers.LlamaConfig(
+        hidden_size=2048,
+        intermediate_size=5632,
+        num_attention_heads=32,
+        num_hidden_layers=22,
+        num_key_value_heads=4,
+        max_position_embeddings=2048,
+    ),
     "llama-7b": transformers.LlamaConfig(
         hidden_size=4096,
         intermediate_size=11008,
@@ -108,7 +116,11 @@ def benchmark_inference(args):
     config.pad_token_id = config.eos_token_id
     tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/llama-tokenizer")
     if args.model_path is not None:
-        model = transformers.LlamaForCausalLM.from_pretrained(args.model_path)
+        #model = transformers.LlamaForCausalLM.from_pretrained(args.model_path)
+        print(args.model_path)
+        model = transformers.AutoModelForCausalLM.from_pretrained(args.model_path, device_map="auto", torch_dtype="auto")
+        print(model.dtype)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path, device_map="auto")
     else:
         # Random weights
         model = transformers.LlamaForCausalLM(config)
@@ -117,6 +129,7 @@ def benchmark_inference(args):
         model = model.half()
     elif args.dtype == "bf16":
         model = model.to(torch.bfloat16)
+
 
     inference_config = InferenceConfig(
         dtype=args.dtype,
@@ -200,7 +213,7 @@ if __name__ == "__main__":
         "--model",
         default="llama3-8b",
         help="The version of Llama model",
-        choices=["toy", "llama-7b", "llama-13b", "llama2-7b", "llama2-13b", "llama3-8b", "llama3-70b"],
+        choices=["toy", "tinyllama", "llama-7b", "llama-13b", "llama2-7b", "llama2-13b", "llama3-8b", "llama3-70b"],
     )
     parser.add_argument("-p", "--model_path", type=str, default=None, help="The pretrained weights path")
     parser.add_argument("-b", "--batch_size", type=int, default=8, help="batch size")
